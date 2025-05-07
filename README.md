@@ -27,7 +27,7 @@ sudo ubuntu-mainline-kernel.sh -i
 ```
 sudo reboot /t:0
 ```
-### установлена более новая версия ядра
+### установлена последняя стабильная версия ядра
 
 ![image](https://github.com/user-attachments/assets/677b3b6f-b87c-46c6-bc33-520e1f188965)
 
