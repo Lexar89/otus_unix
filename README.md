@@ -81,6 +81,7 @@ sudo parted /dev/md42 mkpart primary ext4 40% 60%
 ```
 sudo parted /dev/md42 mkpart primary ext4 60% 80%
 ```
+```
 sudo parted /dev/md42 mkpart primary ext4 80% 100%
 ```
 ### Создадим файловые системы в партишенах
