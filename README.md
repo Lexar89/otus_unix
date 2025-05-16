@@ -1,104 +1,115 @@
-# Дисковая подсистема
-___
-### Имеем в наличии два блочных устройства по 10G, sdb и sdc
-### Делаем из них рейд 5
-```
-mdadm --create /dev/md42 -l 5 -n 2 /dev/sdb /dev/sdc
-```
-### Проверим, что рейд создался корректно
-```
-cat /proc/mdstat
-```
-```
-mdadm -D /dev/md42
-```
-![image](https://github.com/user-attachments/assets/c6b7f9cc-1408-43e1-8864-7b18ba2609e5)
-
-### Рейд собран, далее нужно создать файловую систему
+### Проверим наши диски
 
 ```
-mkfs.ext4 /dev/md42
+sudo lsblk
 ```
-### Создадим директорию и смонтируем в неё наш рейд 
-```
-sudo mkdir /mnt/01
-```
-```
-mount /dev/md42 /mnt/01
-```
-![image](https://github.com/user-attachments/assets/61a32d39-4d60-4dd9-b010-ef4202436d10)
+![image](https://github.com/user-attachments/assets/4d5ec35f-a175-4eaf-a054-8dba43438936)
 
+### Имеем два тестовых блочных устройства sdb и sdc по 10 Гб каждый.
+### Создадим PV на диске sdb:
+```
+sudo pvcreate /dev/sdb
+```
+### Создадим VG и добавим в неё диск sdb:
+```
+sudo vgcreate otus_test /dev/sdb
+```
+### Далее создаем LV размером 8 Гб:
+```
+sudo lvcreate -l+80%FREE -n otus1 otus_test
+```
+### Проверяем Volume Group:
+```
+sudo vgdisplay otus_test
+```
+![image](https://github.com/user-attachments/assets/013e774b-e691-4826-8f4c-c159ab474422)
 
-### Сымитируем вылет диска sdb
+### Видим, что 2 Гб свободно, создадим ещё один LV:
 ```
-mdadm /dev/md42 --fail /dev/sdb
-```
-![image](https://github.com/user-attachments/assets/f6f800bd-f847-4f7c-9540-cffaeca20d07)
-
-### Удалим "вылетевший" диск из рейда 
-```
-mdadm /dev/md42 --remove /dev/sdb
-```
-### Добавим диск обратно и дождёмся ребилда
-```
-sudo mdadm /dev/md42 --add /dev/sdb
-```
-![image](https://github.com/user-attachments/assets/ed9d090b-2661-48cc-80b5-2ef39c623173)
-
-
-### Разберём рейд и грохнем суперблоки на дисках
-```
-sudo umount /mnt/01
-```
-```
-sudo mdadm -S /dev/md42
-```
-```
-sudo mdadm --zero-superblock /dev/sdb
-```
-```
-sudo mdadm --zero-superblock /dev/sdc
-```
-### Создадим рейд заново, вместо монтирования директории создадим таблицу GPT разделов и 5 партишенов
-```
-sudo mdadm --create /dev/md42 -l 5 -n 2 /dev/sdb /dev/sdc
-```
-```
-sudo mkfs.ext4 /dev/md42
-```
-```
-sudo parted -s /dev/md42 mklabel gpt
-```
-```
-sudo parted /dev/md42 mkpart primary ext4 0% 20%
-```
-```
-sudo parted /dev/md42 mkpart primary ext4 20% 40%
-```
-```
-sudo parted /dev/md42 mkpart primary ext4 40% 60%
-```
-```
-sudo parted /dev/md42 mkpart primary ext4 60% 80%
-```
-```
-sudo parted /dev/md42 mkpart primary ext4 80% 100%
-```
-### Создадим файловые системы в партишенах
-```
-for i in $(seq 1 5); do sudo mkfs.ext4 /dev/md42p$i; done
+sudo lvcreate -L2000M -n otus1_small otus_test
 ```
 
-![image](https://github.com/user-attachments/assets/5e11ec0f-caa3-4e9b-891a-407729ed9b12)
+![image](https://github.com/user-attachments/assets/a3517f6d-d96f-4314-a647-57db734213e0)
 
-### Смонтируем их по каталогам
+
+### Создадим на LV файловые системы и смонтируем директорию
+```
+sudo mkfs.ext4 /dev/otus_test/otus1
+```
+```
+sudo mkfs.ext4 /dev/otus_test/otus1_small
+```
+```
+sudo mkdir /data
+```
+```
+sudo mount /dev/otus_test/otus1 /data
+```
+### Займёмся расширением LVM
+### Добавим PV на диск sdc
+```
+sudo pvcreate /dev/sdc
+```
+### Добавим диск sdc в VG otus_test
+```
+sudo vgextend otus_test /dev/sdc
+```
+### Проверим, что новый диск добавился в нужную VG
+```
+sudo vgdisplay -v otus_test
+```
+![image](https://github.com/user-attachments/assets/34784b83-2e30-4e77-8722-8a08fc0fb42d)
+
 
 ```
-sudo mkdir -p /raid/part{1,2,3,4,5}
+sudo vgdisplay -v otus_test | grep 'PV Name'
 ```
-```
-for i in $(seq 1 5); do sudo mount /dev/md42p$i /raid/part$i; done
-```
-![image](https://github.com/user-attachments/assets/c3d75d79-983e-4c65-8782-950ce06ab205)
+![image](https://github.com/user-attachments/assets/28b34526-df3f-4020-b8a1-9966684de2a9)
 
-### Задание выполнено
+```
+sudo vgs
+```
+![image](https://github.com/user-attachments/assets/2d0801a8-3cf8-4a0f-81be-fdd9e6b2a0e9)
+
+### Увеличим LV otus1 за счёт появившегося свободного места
+```
+sudo lvextend -l+70%FREE /dev/otus_test/otus1
+```
+```
+sudo lvs /dev/otus_test/otus1
+```
+![image](https://github.com/user-attachments/assets/5d40062d-7c1a-4358-9a3f-5fae12240a9f)
+
+
+### Уменьшим LV otus1 до 10 Гб
+### Отмонтируем диск от директории /data
+```
+sudo umount /data
+```
+### Проверим фс на ошибки
+```
+sudo e2fsck -fy /dev/otus_test/otus1
+```
+![image](https://github.com/user-attachments/assets/55e882b4-1fac-48da-a1ab-7ab18a9ff801)
+
+### Выполним ресайз фс до 10 Гб
+```
+sudo resize2fs /dev/otus_test/otus1 10G
+```
+
+### Уменьшим размер LVM otus1 до 10 Гб
+```
+sudo lvreduce /dev/otus_test/otus1
+```
+### Маунтим lvm otus1 обратно в директорию /data
+### Проверим размеры ФС и LVM
+```
+sudo df -Th /data
+```
+![image](https://github.com/user-attachments/assets/6d0a7825-a0b8-4e9f-90b2-142954dcc2bf)
+
+```
+sudo lvs /dev/otus_test/otus1
+```
+![image](https://github.com/user-attachments/assets/c5fa5086-2097-4607-b418-0c5a39bdd1f8)
+
