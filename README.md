@@ -1,117 +1,104 @@
-# Файловые системы и LVM-1
+# ZFS
 
-### Проверим наши диски
+### Имеем в наличии 8 дисков по 512 Мб
 
 ```
 sudo lsblk
 ```
-![image](https://github.com/user-attachments/assets/4d5ec35f-a175-4eaf-a054-8dba43438936)
-
-### Имеем два тестовых блочных устройства sdb и sdc по 10 Гб каждый.
-### Создадим PV на диске sdb:
-```
-sudo pvcreate /dev/sdb
-```
-### Создадим VG и добавим в неё диск sdb:
-```
-sudo vgcreate otus_test /dev/sdb
-```
-### Далее создаем LV размером 8 Гб:
-```
-sudo lvcreate -l+80%FREE -n otus1 otus_test
-```
-### Проверяем Volume Group:
-```
-sudo vgdisplay otus_test
-```
-![image](https://github.com/user-attachments/assets/013e774b-e691-4826-8f4c-c159ab474422)
-
-### Видим, что 2 Гб свободно, создадим ещё один LV:
-```
-sudo lvcreate -L2000M -n otus1_small otus_test
-```
-
-![image](https://github.com/user-attachments/assets/a3517f6d-d96f-4314-a647-57db734213e0)
+![image](https://github.com/user-attachments/assets/846751bb-0c89-4a23-97d1-10aa2e4425d8)
 
 
-### Создадим на LV файловые системы и смонтируем директорию
-```
-sudo mkfs.ext4 /dev/otus_test/otus1
-```
-```
-sudo mkfs.ext4 /dev/otus_test/otus1_small
-```
-```
-sudo mkdir /data
-```
-```
-sudo mount /dev/otus_test/otus1 /data
-```
-### Займёмся расширением LVM
-### Добавим PV на диск sdc
-```
-sudo pvcreate /dev/sdc
-```
-### Добавим диск sdc в VG otus_test
-```
-sudo vgextend otus_test /dev/sdc
-```
-### Проверим, что новый диск добавился в нужную VG
-```
-sudo vgdisplay -v otus_test
-```
-![image](https://github.com/user-attachments/assets/34784b83-2e30-4e77-8722-8a08fc0fb42d)
-
+### Делаем z-pool-ы  raid 1
 
 ```
-sudo vgdisplay -v otus_test | grep 'PV Name'
-```
-![image](https://github.com/user-attachments/assets/28b34526-df3f-4020-b8a1-9966684de2a9)
-
-```
-sudo vgs
-```
-![image](https://github.com/user-attachments/assets/2d0801a8-3cf8-4a0f-81be-fdd9e6b2a0e9)
-
-### Увеличим LV otus1 за счёт появившегося свободного места
-```
-sudo lvextend -l+70%FREE /dev/otus_test/otus1
-```
-```
-sudo lvs /dev/otus_test/otus1
-```
-![image](https://github.com/user-attachments/assets/5d40062d-7c1a-4358-9a3f-5fae12240a9f)
-
-
-### Уменьшим LV otus1 до 10 Гб
-### Отмонтируем диск от директории /data
-```
-sudo umount /data
-```
-### Проверим фс на ошибки
-```
-sudo e2fsck -fy /dev/otus_test/otus1
-```
-![image](https://github.com/user-attachments/assets/55e882b4-1fac-48da-a1ab-7ab18a9ff801)
-
-### Выполним ресайз фс до 10 Гб
-```
-sudo resize2fs /dev/otus_test/otus1 10G
+sudo zpool create otus1 mirror /dev/sdb /dev/sdc -f
+sudo zpool create otus2 mirror /dev/sdd /dev/sde -f
+sudo zpool create otus3 mirror /dev/sdf /dev/sdg -f
+sudo zpool create otus4 mirror /dev/sdh /dev/sdi -f
+sudo zpool list
 ```
 
-### Уменьшим размер LVM otus1 до 10 Гб
-```
-sudo lvreduce /dev/otus_test/otus1
-```
-### Маунтим lvm otus1 обратно в директорию /data
-### Проверим размеры ФС и LVM
-```
-sudo df -Th /data
-```
-![image](https://github.com/user-attachments/assets/6d0a7825-a0b8-4e9f-90b2-142954dcc2bf)
+![image](https://github.com/user-attachments/assets/feaabee0-3a92-4ba0-8418-385c1e5e73e6)
+
+
+### Добавляем алгоритмы сжатия на каждый пул
 
 ```
-sudo lvs /dev/otus_test/otus1
+sudo zfs set compression=lzjb otus1
+sudo zfs set compression=lz4 otus2
+sudo zfs set compression=gzip-9 otus3
+sudo zfs set compression=zle otus4
+zfs get all | grep compression
 ```
-![image](https://github.com/user-attachments/assets/c5fa5086-2097-4607-b418-0c5a39bdd1f8)
+![image](https://github.com/user-attachments/assets/08890838-b156-43e6-b05b-43fa1b2be0f6)
 
+
+### Скачиваем один файл во все пулы
+
+```
+for i in {1..4}; do sudo wget -P /otus$i https://gutenberg.org/cache/epub/2600/pg2600.converter.log; done
+```
+![image](https://github.com/user-attachments/assets/8adc09a4-09f4-4812-b548-28d9f79580be)
+
+
+### Проверяем, что файл есть во всех пулах
+
+```
+sudo ls -l /otus*
+```
+
+![image](https://github.com/user-attachments/assets/7dce9010-fc0c-44eb-aa7b-20085843505a)
+
+```
+sudo zfs list
+```
+![image](https://github.com/user-attachments/assets/6023408e-f68a-41ad-aba6-f3cffa935903)
+
+### Оптимальный метод сжатия - gzip-9
+
+# Import
+
+### Скачиваем через wget и разархивируем в /home файл zpoolexport, указанный в задании.
+
+
+### Проверяем возможность импорта данного каталога в пул
+
+```
+sudo zpool import -d zpoolexport/
+```
+
+### Делаем импорт данного пула
+
+```
+sudo zpool import -d zpoolexport otus
+```
+
+### Проверяем пулы
+
+```
+sudo zpool status
+```
+
+![image](https://github.com/user-attachments/assets/6b14bd11-5efb-43e2-b407-babd24e1a46b)
+
+
+
+# Snapshot
+
+
+### Скачиваем файл, указанный в задании
+
+
+### Восстанавливаем ФС из снэпшота
+
+sudo zfs receive otus/test@today < otus_task2.file
+
+### Ищем в каталоге файл "secret_message"
+
+```
+sudo find /otus/test -name "secret*"
+```
+```
+cat /otus/test/task1/file_mess/secret_message
+```
+![image](https://github.com/user-attachments/assets/4c1c0709-2679-4f45-9fa9-73e581d1e522)
