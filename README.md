@@ -17,6 +17,7 @@ sudo zpool create otus3 mirror /dev/sdf /dev/sdg -f
 sudo zpool create otus4 mirror /dev/sdh /dev/sdi -f
 sudo zpool list
 ```
+### Немного промахнулся, зацепил два диска по 10Гб, ну и ладно))
 
 ![image](https://github.com/user-attachments/assets/feaabee0-3a92-4ba0-8418-385c1e5e73e6)
 
