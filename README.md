@@ -94,9 +94,9 @@ sudo zpool status
 
 
 ### Восстанавливаем ФС из снэпшота
-
+```
 sudo zfs receive otus/test@today < otus_task2.file
-
+```
 ### Ищем в каталоге файл "secret_message"
 
 ```
