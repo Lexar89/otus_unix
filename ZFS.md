@@ -59,7 +59,9 @@ sudo zfs list
 # Import
 
 ### Скачиваем через wget и разархивируем в /home файл zpoolexport, указанный в задании.
-
+```
+wget -O otus_task2.file --no-check-certificate https://drive.usercontent.google.com/download?id=1wgxjih8YZ-cqLqaZVa0lA3h3Y029c3oI&export=download
+```
 
 ### Проверяем возможность импорта данного каталога в пул
 
