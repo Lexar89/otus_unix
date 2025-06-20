@@ -1,61 +1,75 @@
-# NFS
-### Имеем две Ubuntu c адресами 10.129.0.29 и 10.129.0.26
+# Загрузка системы
 
-### Делаем первую сервером (10.129.0.29)
+### Редактируем файл /etc/default/grub
 
-```
-sudo apt install nfs-kernel-server
-```
-### Создаём директорию, которую будем шарить
-```
-mkdir -p /srv/share/upload
-```
-```
-chown -R nobody:nogroup /srv/share
-```
-```
-chmod 0777 /srv/share/upload
-```
-### Добавляем в /etc/exports запись о расшаренной директории
+![image](https://github.com/user-attachments/assets/7529f0f7-7611-4fc8-94b3-b3e5fe10e9fc)
+
+
+### Обновляем загрузчик
 
 ```
-cat << EOF > /etc/exports 
-/srv/share 192.168.50.11/32(rw,sync,root_squash)
-EOF
+sudo update-grub
 ```
-### Экспортируем  нашу директорию
+![image](https://github.com/user-attachments/assets/e522fc2c-3e65-43e7-9ab3-2f21de567512)
+
+
+### Перезагружаем систему 
+
+![image](https://github.com/user-attachments/assets/a3790c79-575e-4fa8-aee8-2354a04564e6)
+
+### В окошке загрузчика нажимаем E 
+
+![image](https://github.com/user-attachments/assets/0326d7f7-17f8-416c-b783-d579fdde10a1)
+
+
+### В конце строки, начинающейся с linux добавляем init=/bin/bash и нажимаем ctrl-x
+
+![image](https://github.com/user-attachments/assets/e5d49104-b53b-499f-9e3e-8d544e04ef2b)
+
+
+### Загружаемся в режиме ro, изменяем на rw командой
 ```
-exportfs -r
+mount -o remount,rw /
 ```
-### Теперь настраиваем клиента (10.129.0.26)
+
+### Пробуем внести изменения в /etc/apt/sources.list.d/ubuntu.sources
+
+![image](https://github.com/user-attachments/assets/7b12ae92-c522-45f1-838d-0334cc01d003)
+
+
+  ### Ребутаемся, проверяем vg
+
+![image](https://github.com/user-attachments/assets/4e612dce-3967-4e64-8a94-5651738c9ea9)
+
+### Переименовываем vgs
 
 ```
-sudo apt install nfs-common
+sudo vgrename ubuntu-vg ubuntu-otus
 ```
 
-### Стартуем сервис и получаем ошибку
-```
-sudo systemctl start nfs-common
-```
-![image](https://github.com/user-attachments/assets/95be9b2e-fce1-402f-9115-ebe29620c4a2)
+###  Вносим изменения в /boot/grub/grub.cfg
 
-### Сервис с маской. Проверяем куда идёт симлинк
 ```
-sudo systemctl enable nfs-common
+sudo nano /boot/grub/grub.cfg
 ```
 ```
-file /lib/systemd/system/nfs-common.service
+ctrl+\
+ubuntu--vg
+enter
+ubuntu--otus
+enter
 ```
-![image](https://github.com/user-attachments/assets/b1fa230e-e43e-416d-9c12-bb3755fc94b9)
 
-### Удаляем файл, чиним сервис и стартуем
-![image](https://github.com/user-attachments/assets/1456c7a6-3f0f-4157-ab36-a51c5fe3bfb4)
+### Автопоиском заменило в трёх местах
 
-### Монтируем на клиенте директорию и проверяем
-```
-sudo mount 10.129.0.29:/srv/share /mnt
-```
-![image](https://github.com/user-attachments/assets/12599e5b-3478-447d-aa48-daa97c32a685)
+![image](https://github.com/user-attachments/assets/848a553c-b1b6-4340-837e-72d67837f97e)
+
+
+### Ребутаемся и проверяем 
+
+![image](https://github.com/user-attachments/assets/3a10baad-99c4-4269-bbab-1a3f365bd5f3)
+
+### Готово
 
 
 
